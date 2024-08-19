@@ -46,14 +46,12 @@ One master datasets has been produced for further modeling via the "append haul"
 |  `vial_id`    |    Unique ID for hepatopancreas sample by year. AKK=Alaska Knight samples, V=Vesteraalen samples   |   numeric/text
 | `cruise` | Cruise ID for Bering Sea bottom trawl surveys. YYYY-01 indicates EBS surveys, YYYY-02 indicates NBS surveys. See RACEBASE or AKFIN for additional NOAA cruise metadata  |   ID Code
 | `gis_station`   | Alpha-numeric designation for the station established in the design of AFSC standardized surveys | numeric/text   
-| `area_swept`   |   Unit of effort for AFSC bottom trawl surveys: computed by distance towed*mean net width   | numeric, in ha
-|  `cpue`   |   Station-level snow crab density, calculated as CPUE"   |   numeric, crab/nmi^2
 |  `vessel`  |     ID number of the vessel used to collect data for that haul associated with vessel name    |   numeric
 |  `haul`      |  Uniquely identifies a sampling event (haul) within an AFSC cruise. It is a sequential number, in chronological order of occurrence |  numeric
 |  `sex` | Sex of specimen sampled. 1=Male, 2-Female   |  numeric
 |  `cw`  |  Carapace width of specimen sampled | numeric, in mm
 |  `ch_cc`   |   Chela height (males) or clutch code (females) used to determine maturity. 0 clutch code for females signifies 000, or immature   | numeric, in mm
- | `crab_wgt`  |   Whole crab weight of specimen sampled (prior to dissection). Only individuals with no missing limbs weighed. Weights were eliminated in 2024 | numeric, in g
+ | `crab_wgt`  |   Whole crab weight of specimen sampled (prior to dissection). Only individuals with no missing limbs weighed. Weight collections were discontinued in 2024 | numeric, in g
 |  `hepato_wwt`    | Total wet weight of hepatopancreas (subtracted from weight of weigh boat)  | numeric, in g
 |  `hepato_dwt`    |Total dry weight of hepatopancreas after drying at 70C for 48hrs (subtracted from weight of weigh boat)  | numeric, in g
 |  `maturity`  |  Maturity of specimen sampled. 0=Immature, 1=Mature"  | numeric                                                                                        
