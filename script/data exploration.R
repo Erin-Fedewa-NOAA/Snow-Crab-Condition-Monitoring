@@ -11,6 +11,8 @@ library(viridis)
 library(ggridges)
 library(RColorBrewer)
 library(broom)
+library(rnaturalearth)
+library(rnaturalearthdata)
 
 condition_master <- read.csv("./output/condition_master.csv")
 
@@ -18,21 +20,19 @@ condition_master <- read.csv("./output/condition_master.csv")
 #SAMPLE SIZES AND SPATIAL EXTENT
 
 #plot sampling locations by year 
-#Basemaps
-usa <- raster::getData("GADM", country = c("USA"), level = 1, path = "./data")
-can <- raster::getData("GADM", country = c("CAN"), level = 1, path = "./data")
+world <- ne_countries(scale = "medium", returnclass = "sf")
 
-#Sample size by year map
 condition_master %>% 
-  group_by(year, mid_latitude, mid_longitude) %>%
-  summarise(n_crab=n()) %>%
-  ggplot() + 
-  geom_polygon(data = usa, aes(x = long, y = lat, group = group))+
-  geom_point(aes(x = mid_longitude, y = mid_latitude, size=n_crab), color= "light blue")+
-  coord_quickmap(xlim = c(-179, -158), ylim = c(53, 66)) +
+    group_by(year, mid_latitude, mid_longitude) %>%
+    summarise(n_crab=n()) -> plot
+
+  ggplot(data = world) +
+    geom_sf() +
+  geom_point(data = plot, aes(x = mid_longitude, y = mid_latitude, size=n_crab), color= "light blue")+
+    coord_sf(xlim = c(-180, -160), ylim = c(56, 66), expand = FALSE) +
   theme_bw() +
   facet_wrap(~year)
-  ggsave("./figures/data exploration/n_year.png", dpi=300)
+  ggsave("./figures/data exploration/n_year.png")
 
 # Sample sizes by year plot
 condition_master %>%
@@ -54,7 +54,7 @@ condition_master %>%
   geom_bar(aes(x=as.factor(maturity), y= n), stat='identity') +
   facet_wrap(~year) +
   theme_bw() +
-  labs(x= "Maturity Status", y = "Sample size") #45 mature males in dataset
+  labs(x= "Maturity Status", y = "Sample size") 
 
 #Sample sizes by sex
 condition_master %>%
