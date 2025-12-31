@@ -111,6 +111,9 @@ effect_size(17.3, 30.7, 8.8, 5.20)
 effect_size(30.8, 30.7, 4.98, 5.20)
 #0.02
 
+#and two more years
+effect_size(34.1, 32.6, 5.05, 8.24 )
+
 #Using this effect size and know sample sizes, let's estimate our power for two years
 pwr.t.test(n = 98,
   d = effect_size(17.3, 30.7, 8.8, 5.20),
@@ -137,7 +140,7 @@ pwr.t.test(n = 75,
 
 #And what about years that are more similar
 pwr.t.test(n = 250,
-           d = effect_size(32.6, 30.9, 8.27, 4.63),
+           d = effect_size(32.0, 30.9, 4.46, 4.63),
            sig.level = 0.05,
            type = "two.sample")
 #25% probability of detecting a true effect
@@ -177,14 +180,16 @@ m1_plot + m2_plot
 #is our 6 year timeseries 
 
 #large effect size
-pwr.anova.test(k = 6, n = NULL, f =.4, sig.level = 0.05, power = .9)
+large <- pwr.anova.test(k = 6, n = NULL, f =.4, sig.level = 0.05, power = .9)
+plot.power.htest(large)
 
 #medium effect size
-pwr.anova.test(k = 6, n = NULL, f =.25, sig.level = 0.05, power = .9)
+medium <- pwr.anova.test(k = 6, n = NULL, f =.25, sig.level = 0.05, power = .9)
+plot.power.htest(medium)
 
 #small effect size
-pwr.anova.test(k = 6, n = NULL, f =.1, sig.level = 0.05, power = .9)
+small <- pwr.anova.test(k = 6, n = NULL, f =.1, sig.level = 0.05, power = .9)
+plot.power.htest(small)
 #so we'd not be able to detect small effect size
-
 
 
