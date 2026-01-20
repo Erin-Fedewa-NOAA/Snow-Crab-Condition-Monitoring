@@ -10,6 +10,12 @@ library(gt)
 library(sjPlot)
 library(marginaleffects)
 library(patchwork)
+library(ggthemes)
+library(hrbrthemes)
+library(crabpack)
+library(lubridate)
+library(magrittr)
+library(akgfmaps)
 
 sc_condition <- read.csv("./output/condition_master.csv")
 
@@ -114,9 +120,12 @@ effect_size(30.8, 30.7, 4.98, 5.20)
 #and two more years
 effect_size(34.1, 32.6, 5.05, 8.24 )
 
+#and now an effect size representative of half the difference between 2019 and 2021
+effect_size(32.6, 25, 8, 8)
+
 #Using this effect size and know sample sizes, let's estimate our power for two years
-pwr.t.test(n = 98,
-  d = effect_size(17.3, 30.7, 8.8, 5.20),
+pwr.t.test(n = 120,
+  d = effect_size(32.6, 25, 8, 8),
   sig.level = 0.05,
   type = "two.sample")
 #100% probability of detecting a ~50% reduction in energetic condition
@@ -192,4 +201,209 @@ small <- pwr.anova.test(k = 6, n = NULL, f =.1, sig.level = 0.05, power = .9)
 plot.power.htest(small)
 #so we'd not be able to detect small effect size
 
+#############################################################
+#Additional requests:
 
+#Evaluate evidence for sex-specific differences in energetic condition
+
+#plot annual mean, both sexes
+sc_condition %>%
+  filter(lme == "EBS", 
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"),
+         maturity != 1) %>%
+  group_by(year, lme) %>%
+  summarise(sd = sd(Perc_DWT, na.rm = TRUE),
+            cond = mean(Perc_DWT, na.rm=T)) %>%
+  arrange(year) %>%
+  filter(lme != "NA") %>%
+  ggplot(aes(as.factor(year), cond, fill=year)) +
+  geom_bar(stat="identity") + 
+  geom_errorbar(aes(ymin = cond-sd, ymax = cond+sd), width = 0.2, color="gray45") +
+  theme_bw() +
+  #theme_ipsum(axis_title_just = "cc", axis_title_size = 11, axis_text_size =10) +
+  labs(y = "Snow Crab Condition (% DWT)", x = "") +
+  theme(axis.text=element_text(size=12)) +
+  theme(legend.position = "none") +
+  geom_hline(yintercept=22.6, color="red") + #adding prelim threshold from starvation lab experiment
+  ggtitle("EBS Both Sexes")
+ 
+#males only
+sc_condition %>%
+  filter(lme == "EBS", 
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"),
+         maturity != 1,
+         sex == 1) %>%
+  group_by(year, lme) %>%
+  summarise(sd = sd(Perc_DWT, na.rm = TRUE),
+            cond = mean(Perc_DWT, na.rm=T)) %>%
+  arrange(year) %>%
+  filter(lme != "NA") %>%
+  ggplot(aes(as.factor(year), cond, fill=year)) +
+  geom_bar(stat="identity") + 
+  geom_errorbar(aes(ymin = cond-sd, ymax = cond+sd), width = 0.2, color="gray45") +
+  theme_bw() +
+  #theme_ipsum(axis_title_just = "cc", axis_title_size = 11, axis_text_size =10) +
+  labs(y = "Snow Crab Condition (% DWT)", x = "") +
+  theme(axis.text=element_text(size=12)) +
+  theme(legend.position = "none") +
+  geom_hline(yintercept=22.6, color="red") + #adding prelim threshold from starvation lab experiment
+  ggtitle("EBS Males only")
+
+#females only
+sc_condition %>%
+  filter(lme == "EBS", 
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"),
+         maturity != 1,
+         sex == 2) %>%
+  group_by(year, lme) %>%
+  summarise(sd = sd(Perc_DWT, na.rm = TRUE),
+            cond = mean(Perc_DWT, na.rm=T)) %>%
+  arrange(year) %>%
+  filter(lme != "NA") %>%
+  ggplot(aes(as.factor(year), cond, fill=year)) +
+  geom_bar(stat="identity") + 
+  geom_errorbar(aes(ymin = cond-sd, ymax = cond+sd), width = 0.2, color="gray45") +
+  theme_bw() +
+  #theme_ipsum(axis_title_just = "cc", axis_title_size = 11, axis_text_size =10) +
+  labs(y = "Snow Crab Condition (% DWT)", x = "") +
+  theme(axis.text=element_text(size=12)) +
+  theme(legend.position = "none") +
+  geom_hline(yintercept=22.6, color="red") + #adding prelim threshold from starvation lab experiment
+  ggtitle("EBS Females only")
+
+#Evaluate evidence for size signal in energetic condition
+  
+#bin data, plot by %DWT
+sc_condition %>%
+  filter(lme == "EBS", 
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"),
+         maturity != 1) %>%
+  mutate(size_bin = cut(cw, breaks=c(35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110))) %>%
+  group_by(size_bin, sex, year) %>%
+  summarise(cond = mean(Perc_DWT, na.rm=T),
+            sample_size = n()) %>%
+  filter(size_bin != "NA") -> plot_dat
+
+#male plot
+plot_dat %>% 
+  filter(sex ==1) %>%
+  ggplot(aes(as.factor(size_bin), cond, fill=sample_size)) +
+  geom_col(stat="identity") +
+  geom_hline(yintercept=22.6, color="red") +
+facet_wrap(~year)
+
+#female plot
+plot_dat %>% 
+  filter(sex ==2) %>%
+  ggplot(aes(as.factor(size_bin), cond, fill=sample_size)) +
+  geom_col(stat="identity") +
+  geom_hline(yintercept=22.6, color="red") +
+  facet_wrap(~year)
+
+###########################
+#hypothetical sampling effort  
+
+#if we used size criteria and proposed goal of 180 samples per year in the EBS,
+  #what would spatial coverage look like if we sampled 1 crab per station without
+  #strata sampling design?
+
+#pull data from crabpack
+## Pull haul and snow crab specimen data ----
+snow <- get_specimen_data(species = "SNOW",
+                          region = "EBS",
+                          channel = "KOD")
+
+haul <- snow$haul
+
+#Filter data for condition sampling criteria- note this is very imperfect b/c 
+  #we're not filtering for immature males only  
+snow$specimen %>%
+  left_join(haul) %>%
+  filter(YEAR %in% 2019:2025,
+         SEX == 1 & SIZE >= 70 & SIZE < 100 & SHELL_CONDITION < 3 | 
+           SEX == 2 & SIZE >= 45 & CLUTCH_SIZE == 0 ) %>%
+  group_by(YEAR, STATION_ID, SEX, START_DATE, MID_LATITUDE, MID_LONGITUDE) %>%
+  summarise(condition_samples = n()) -> dat
+
+#splice data for 90 females per year
+dat %>%
+  filter(SEX == 2) %>%
+  group_by(YEAR) %>%
+  arrange(START_DATE) %>%
+  group_by(YEAR) %>%
+  slice_head(n = 60) -> female_dat
+
+#splice data for 90 males per year
+dat %>%
+  filter(SEX == 1) %>%
+  group_by(YEAR) %>%
+  arrange(START_DATE) %>%
+  group_by(YEAR) %>%
+  slice_head(n = 60) -> male_dat
+
+#combine for final dataset to plot
+female_dat %>%
+  bind_rows(male_dat) %>%
+  group_by(YEAR, STATION_ID, MID_LATITUDE, MID_LONGITUDE) %>%
+  summarise(n = sum(condition_samples))-> map_data
+
+#plot maps of sampling effort
+ 
+## SET COORDINATE REFERENCE SYSTEMS (CRS) --------------------------------------
+in.crs <- "+proj=longlat +datum=NAD83" #CRS is in lat/lon
+map.crs <- "EPSG:3338" # final crs for mapping/plotting: Alaska Albers
+
+## LOAD SHELLFISH ASSESSMENT PROGRAM GEODATABASE -------------------------------
+survey_gdb <- "./data/SAP_layers" 
+survey_strata <- terra::vect(survey_gdb, layer = "EBS.NBS_surveyarea")
+#EBS/NBS Boundary line
+boundary <- st_read(layer = "EBS_NBS_divide", survey_gdb) 
+
+## LOAD ALASKA REGION LAYERS (FROM AKGFMAPS R package) -----------------------------------
+ebs_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
+ebs_survey_areas <- ebs_layers$survey.area
+ebs_survey_areas$survey_name <- c("Eastern Bering Sea", "Northern Bering Sea")
+
+#Transform survey crab data into spatial data frame
+map_data %>% 
+  # Convert lat/long to an sf object
+  st_as_sf(coords = c("MID_LONGITUDE", "MID_LATITUDE"), crs = st_crs(4326)) %>%
+  #st_as_sf needs crs of the original coordinates- need to transform to Alaska Albers
+  st_transform(crs = st_crs(3338)) -> crab_dat
+
+#Transform condition crab data into spatial data frame
+sc_condition %>%
+  filter(lme == "EBS", 
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"),
+         maturity != 1) %>%
+  rename(YEAR=year, MID_LATITUDE=mid_latitude, MID_LONGITUDE=mid_longitude) %>%
+  group_by(YEAR, MID_LATITUDE, MID_LONGITUDE) %>%
+  summarise(n_crab=n()) %>%
+  # Convert lat/long to an sf object
+  st_as_sf(coords = c("MID_LONGITUDE", "MID_LATITUDE"), crs = st_crs(4326)) %>%
+  #st_as_sf needs crs of the original coordinates- need to transform to Alaska Albers
+  st_transform(crs = st_crs(3338)) -> condition_dat
+
+#map
+ggplot() +
+  geom_sf(data = ebs_layers$survey.grid, fill=NA, color=alpha("grey80"))+
+  geom_sf(data = ebs_survey_areas, fill = NA) +
+  geom_sf(data = ebs_layers$akland, fill = "grey80", color = "black") +
+  #add hypothetical crab sampling
+  geom_sf(data=crab_dat, color = "grey30", alpha = .6) +
+  #add existing random stratified sampling
+  geom_sf(data=condition_dat, aes(size = n_crab), color = "blue", alpha = .6) +
+  geom_sf(data= boundary, linewidth = 1, color = "grey40") +
+  scale_x_continuous(limits = ebs_layers$plot.boundary$x,
+                     breaks = ebs_layers$lon.breaks) +
+  scale_y_continuous(limits = ebs_layers$plot.boundary$y,
+                     breaks = ebs_layers$lat.breaks) +
+  scale_size_continuous(range = c(1,4)) +
+  theme_bw() +
+  facet_wrap(~YEAR) +
+  labs(x="", y="", size = expression(paste("Snow crab \n samples"))) +
+  theme(legend.position="bottom") +
+  guides(size = guide_legend(theme = theme(
+    legend.title = element_text(size = 9)))) +
+  theme(plot.margin = margin(0,-5,0,-5)) +
+  theme(axis.text=element_text(size=8))
