@@ -165,7 +165,6 @@ m1 <- lm(Perc_DWT ~ as.factor(year), data=dat)
 summary(m1)
 plot_predictions(m1, by="year") -> m1_plot
 
-
 #Now if we cut samples in half each year can we still detect a significant effect of year?
 sc_condition %>%
   filter(lme == "EBS", 
@@ -202,9 +201,10 @@ plot.power.htest(small)
 #so we'd not be able to detect small effect size
 
 #############################################################
-#Additional requests:
+#Additional requests from data working group:
 
 #Evaluate evidence for sex-specific differences in energetic condition
+  #i.e. can we just collect females for monitoring condition?
 
 #plot annual mean, both sexes
 sc_condition %>%
@@ -301,11 +301,11 @@ plot_dat %>%
   facet_wrap(~year)
 
 ###########################
-#hypothetical sampling effort  
+#hypothetical sampling effort of random uniform sampling design
 
 #if we used size criteria and proposed goal of 180 samples per year in the EBS,
   #what would spatial coverage look like if we sampled 1 crab per station without
-  #strata sampling design?
+  #strata and per region sampling goals?
 
 #pull data from crabpack
 ## Pull haul and snow crab specimen data ----
@@ -316,18 +316,38 @@ snow <- get_specimen_data(species = "SNOW",
 haul <- snow$haul
 
 #Filter data for condition sampling criteria- note this is very imperfect b/c 
-  #we're not filtering for immature males only  
+  #we can't assign male maturity to specimen-level data. We'll use a size cutoff 
+  #and shell condition 2 only to attempt to eliminate some of the mature males
 snow$specimen %>%
   left_join(haul) %>%
-  filter(YEAR %in% 2019:2025,
-         SEX == 1 & SIZE >= 70 & SIZE < 100 & SHELL_CONDITION < 3 | 
+  filter(YEAR %in% 2017:2025,
+         SEX == 1 & SIZE >= 70 & SIZE <= 95 & SHELL_CONDITION < 3 | 
            SEX == 2 & SIZE >= 45 & CLUTCH_SIZE == 0 ) %>%
-  group_by(YEAR, STATION_ID, SEX, START_DATE, MID_LATITUDE, MID_LONGITUDE) %>%
+  group_by(YEAR, STATION_ID, HAUL, SEX, START_DATE, MID_LATITUDE, MID_LONGITUDE) %>%
   summarise(condition_samples = n()) -> dat
 
-#splice data for 90 females per year
-dat %>%
+#Max number of total samples/stations sampled per sex if only 1 sample collected
+  #per station
+dat %>% 
   filter(SEX == 2) %>%
+  group_by(YEAR) %>%
+  summarize(n = n())
+
+dat %>% 
+  filter(SEX == 1) %>%
+  group_by(YEAR) %>%
+  summarize(n = n())
+
+#total sample size by year
+dat %>%
+  group_by(YEAR) %>%
+  summarize(n = n())
+
+#splice data for 90 females per year. limiting to years when we have 
+  #condition data
+dat %>%
+  filter(SEX == 2,
+         YEAR %in% 2019:2025) %>%
   group_by(YEAR) %>%
   arrange(START_DATE) %>%
   group_by(YEAR) %>%
@@ -335,7 +355,8 @@ dat %>%
 
 #splice data for 90 males per year
 dat %>%
-  filter(SEX == 1) %>%
+  filter(SEX == 1,
+         YEAR %in% 2019:2025) %>%
   group_by(YEAR) %>%
   arrange(START_DATE) %>%
   group_by(YEAR) %>%
@@ -407,3 +428,98 @@ ggplot() +
     legend.title = element_text(size = 9)))) +
   theme(plot.margin = margin(0,-5,0,-5)) +
   theme(axis.text=element_text(size=8))
+
+#Now let's try uniform random sampling without a sample cap, and instead with reduced
+  #sampling frequency of only sampling odd-numbered hauls
+
+#female dataset subset for odd hauls only 
+dat %>%
+  filter(SEX == 2) %>%
+  group_by(YEAR) %>%
+  filter(HAUL %% 2 == 1) -> female_dat_odd
+
+#number of female samples collected
+female_dat_odd %>%
+  group_by(YEAR) %>%
+  summarize(n = n())
+
+#number of odd stations with >1 female that meets criteria 
+female_dat_odd %>%
+  group_by(YEAR) %>%
+  filter(condition_samples > 1) %>%
+  summarize(n = n())
+
+#male dataset subset for odd hauls only 
+dat %>%
+  filter(SEX == 1) %>%
+  group_by(YEAR) %>%
+  filter(HAUL %% 2 == 1) -> male_dat_odd
+
+#number of male samples collected
+male_dat_odd %>%
+  group_by(YEAR) %>%
+  summarize(n = n())
+
+#number of odd stations with >1 male that meets criteria 
+male_dat_odd %>%
+  group_by(YEAR) %>%
+  filter(condition_samples > 1) %>%
+  summarize(n = n())
+
+#total sample size by year
+dat %>%
+  group_by(YEAR) %>%
+  filter(HAUL %% 2 == 1) %>%
+  group_by(YEAR) %>%
+  summarize(n = n())
+
+#Using effect size from 7% reduction in energetic condition and these sample sizes, 
+  #let's estimate our power 
+pwr.t.test(n = 75,
+           d = effect_size(32.6, 25, 8, 8),
+           sig.level = 0.05,
+           type = "two.sample")
+#99% probability of detecting a ~7% reduction in energetic condition even with 
+  #lowest sample size
+
+#combine for final dataset to plot map
+female_dat_odd %>%
+  bind_rows(male_dat_odd) %>%
+  group_by(YEAR, STATION_ID, MID_LATITUDE, MID_LONGITUDE) %>%
+  summarise(n = sum(condition_samples))-> map_data_odd
+
+#and plot spatial extent of sampling effort
+
+#Transform survey crab data into spatial data frame
+map_data_odd %>% 
+  # Convert lat/long to an sf object
+  st_as_sf(coords = c("MID_LONGITUDE", "MID_LATITUDE"), crs = st_crs(4326)) %>%
+  #st_as_sf needs crs of the original coordinates- need to transform to Alaska Albers
+  st_transform(crs = st_crs(3338)) -> crab_dat
+
+#map
+ggplot() +
+  geom_sf(data = ebs_layers$survey.grid, fill=NA, color=alpha("grey80"))+
+  geom_sf(data = ebs_survey_areas, fill = NA) +
+  geom_sf(data = ebs_layers$akland, fill = "grey80", color = "black") +
+  #add hypothetical crab sampling layer
+  geom_sf(data=crab_dat, color = "grey30", alpha = .6) +
+  geom_sf(data= boundary, linewidth = 1, color = "grey40") +
+  scale_x_continuous(limits = ebs_layers$plot.boundary$x,
+                     breaks = ebs_layers$lon.breaks) +
+  scale_y_continuous(limits = ebs_layers$plot.boundary$y,
+                     breaks = ebs_layers$lat.breaks) +
+  scale_size_continuous(range = c(1,4)) +
+  theme_bw() +
+  facet_wrap(~YEAR) +
+  labs(x="", y="", size = expression(paste("Snow crab \n samples"))) +
+  theme(legend.position="bottom") +
+  guides(size = guide_legend(theme = theme(
+    legend.title = element_text(size = 9)))) +
+  theme(plot.margin = margin(0,-5,0,-5)) +
+  theme(axis.text=element_text(size=8))
+
+
+
+
+
