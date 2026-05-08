@@ -147,6 +147,19 @@ pwr.t.test(n = 75,
            type = "two.sample")
 #100% probability of detecting a true effect
 
+#and what if we only sample one male and one female per station?
+sc_condition %>%
+  filter(lme == "EBS", 
+         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"),
+         maturity != 1) %>%
+  group_by(year, station_id) %>%
+  slice_sample(n = 1) %>%
+  ungroup() %>%
+  group_by(year) %>%
+  summarise(avg_condition = mean(Perc_DWT, na.rm=T),
+            sd_condition = sd(Perc_DWT, na.rm=T),
+            sum_samples = n()) 
+
 #And what about years that are more similar
 pwr.t.test(n = 250,
            d = effect_size(32.0, 30.9, 4.46, 4.63),
