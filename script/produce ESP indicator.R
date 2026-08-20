@@ -156,7 +156,7 @@ ggsave("./figures/model_condition.png", height = 6, width = 7, units = "in", dpi
 
 ############################################
 
-#Save output locally and in Snow Crab ESP folder
+#Save output locally and in Snow Crab ESP output folder
 indicator_condition <- year_ebs %>%
   mutate(year = as.numeric(as.character(year))) %>%
   complete(year = min(year):max(year)) %>%
