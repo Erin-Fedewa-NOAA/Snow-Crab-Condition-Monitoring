@@ -156,13 +156,13 @@ ggsave("./figures/model_condition.png", height = 6, width = 7, units = "in", dpi
 
 ############################################
 
-#Save output
+#Save output locally and in Snow Crab ESP folder
 indicator_condition <- year_ebs %>%
   mutate(year = as.numeric(as.character(year))) %>%
   complete(year = min(year):max(year)) %>%
   arrange(year)
 
 write.csv(indicator_condition, file="./output/indicator_opilio_condition.csv", row.names = FALSE)
-
+write.csv(indicator_condition, file="C:/Users/erin.fedewa/Work/Ecosystem and Socioeconomic Profiles/Snow Crab ESP/Indicator Development/Output/indicator_opilio_condition.csv", row.names = FALSE)
 
 
