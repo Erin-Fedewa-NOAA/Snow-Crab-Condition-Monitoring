@@ -13,7 +13,7 @@ library(stringr)
 
 #############################
 #Append maturity to biometrics data
-bio_dat <- read.csv("./data/2019_2025 biometrics data.csv")
+bio_dat <- read.csv("./data/wwtdwt_data.csv")
 
 #Determine male maturity via distribution-based cutline method/clutch codes
 bio_dat %>%
@@ -26,7 +26,7 @@ bio_dat %>%
                                       (Sex == 1 & CW < 50 & str_detect(Cruise, "01$")) |
                                       (Sex == 1 & CH_CC == 0) ~ 0, #in 2024, datasheets read "imm" for males because
                                           #maturity was confirmed with maturity app. Hard coded as 0 
-                              (Sex == 1 & Cruise %in% c(201901,202101,202201,202301,202401) &
+                              (Sex == 1 & str_detect(Cruise, "01$") &
                                  log(CH_CC) >= -2.360406 + 1.176558 * log(CW)) ~ 1, #mature male EBS
                               #NBS male cutlines
                               (Sex == 1 & str_detect(Cruise, "02$") & 
@@ -54,19 +54,18 @@ ebs_haul %>%
   bind_rows(nbs_haul) %>% 
   rename_with(tolower) %>%
   right_join(cond_mat, by = c("cruise", "vessel", "haul")) -> mat_haul
-#Note the NAs for 202502 because NBS survey not done yet at run time! 
-
-#Add in sampling regions associated with each station
-  #read in lookup table
-regions <- read.csv("./data/regions_lookup.csv") 
 
 #join and write csv
 mat_haul %>%
-  left_join(regions, by="station_id") %>%
-#calculate additional WWT:DWT/FA metrics
+  #calculate additional WWT:DWT/FA metrics
   mutate(DWT_WWT = hepato_dwt/hepato_wwt,
        Perc_DWT = DWT_WWT*100,
        WWT_DWT = hepato_wwt/hepato_dwt) %>%
+  select(-hauljoin, -duration, -haul_type, -distance_fished, -net_width, -net_measured,
+         -net_height, -bottom_type, -wire_length, -gear, -accessories, -design_id,
+         -subsample, -district, -performance, -total_area) %>%
+  #excluding these very large females- likely Tanners
+  filter(!vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66")) %>%
   write_csv(file="./output/condition_master.csv")
 
 

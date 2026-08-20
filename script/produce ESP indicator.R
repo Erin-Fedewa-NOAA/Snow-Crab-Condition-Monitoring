@@ -1,5 +1,5 @@
 # Develop ESP indicator for juvenile snow crab energetic condition:
-#annual mean % DWt of hepatopancreas
+  #annual mean % DWt of hepatopancreas
 
 # Erin Fedewa
 
@@ -36,35 +36,28 @@ sc_condition <- read.csv("./output/condition_master.csv")
 #######################################
 #Calculate observed mean condition (ESP indicator prior to 2025)
 sc_condition %>%
-  filter(lme != "NA", #one crab collected outside the sampling design
-         lme != "NBS",
-         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"),
+  filter(region == "EBS",
          maturity != 1) %>%
   group_by(year) %>%
   summarise(avg_condition = mean(Perc_DWT, na.rm=T)) -> cond
 
-#Plots 
-missing <- data.frame(year = 2020)
-
+#EBS/NBS observed mean condition plot 
 sc_condition %>%
-  filter(lme != "NA", #one crab collected outside the sampling design
-         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"),
-         maturity != 1) %>%
-  group_by(year, lme) %>%
+  filter(maturity != 1) %>%
+  group_by(year, region) %>%
   summarise(sd = sd(Perc_DWT, na.rm = TRUE),
-            cond = mean(Perc_DWT, na.rm=T)) %>%
-  bind_rows(missing) %>%
-  arrange(year) %>%
-  filter(lme != "NA") %>%
-  mutate(lme = recode(lme, EBS = "Eastern Bering Sea",
+            cond = mean(Perc_DWT, na.rm=T), .groups = "drop") %>%
+  complete(year = min(year):max(year),
+            region = c("EBS", "NBS")) %>%
+  arrange(year, region) %>%
+  mutate(region = recode(region, EBS = "Eastern Bering Sea",
                       NBS = "Northern Bering Sea")) -> plot
 
-#plot annual mean as bar plot 
 plot %>% 
   ggplot(aes(as.factor(year), cond, fill=year)) +
   geom_bar(stat="identity") + 
   geom_errorbar(aes(ymin = cond-sd, ymax = cond+sd), width = 0.2, color="gray45") +
-  facet_wrap(~lme) +
+  facet_wrap(~region) +
   theme_bw() +
   theme_ipsum(axis_title_just = "cc", axis_title_size = 11, axis_text_size =10) +
   labs(y = "Snow Crab Condition (% DWT)", x = "") +
@@ -73,35 +66,34 @@ plot %>%
   geom_hline(yintercept=22.6, color="red") + #adding prelim threshold from starvation lab experiment
   geom_rect(aes(xmin=0, xmax=Inf, ymin=22.6, ymax=22.6 + 2.9), fill="red", alpha = 0.05) + 
   geom_rect(aes(xmin=0, xmax=Inf, ymin=22.6-2.9, ymax=22.6), fill="red", alpha = 0.05) +
-  geom_vline(data = subset(plot, lme == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
-  geom_text(data = subset(plot, lme == "Eastern Bering Sea"), aes(x = .7, y=44, label = "Mid-collapse"),
+  geom_vline(data = subset(plot, region == "Eastern Bering Sea"), aes(xintercept = 1.5), linetype="dashed") +
+  geom_text(data = subset(plot, region == "Eastern Bering Sea"), aes(x = .7, y=44, label = "Mid-collapse"),
             size = 2.5, color = "#D55E00") +
-  geom_text(data = subset(plot, lme == "Eastern Bering Sea"), aes(x = 3, y=44, label = "Post-collapse"),
+  geom_text(data = subset(plot, region == "Eastern Bering Sea"), aes(x = 3, y=44, label = "Post-collapse"),
             size = 2.5, color = "#084594") 
 ggsave("./figures/observed_condition.png", height = 6, width = 7, units = "in", dpi = 300)
 
 
 ############################################################################
-#Improvements for 2025- deriving annual means from a model controlling for seasonality 
+#Now estimate annual means from a model controlling for seasonality 
   #and crab size (see Fedewa et al 2025 for further detail)
 
 #data wrangling- EBS dataset  
 sc_condition %>%
   mutate(julian=yday(parse_date_time(start_date, "ymd", "US/Alaska"))) %>%
-  filter(lme == "EBS", 
-         !vial_id %in% c("2019-65","2019-67","2019-68","2019-71","2019-66"), 
+  filter(region == "EBS", 
          maturity != 1,
          Perc_DWT >= 0) %>%
   mutate(year = as.factor(year),
          sex = as.factor(sex),
-         region = as.factor(sample_region),
+         region = as.factor(region),
          station = as.factor(station_id),
          julian = as.numeric(julian),
          perc_dwt = as.numeric(Perc_DWT)) -> ebs.dat 
 
 #EBS ANNUAL MEANS
 ebs_annual_final_formula <-  bf(perc_dwt | trunc(lb = 0) ~ s(cw, k = 3) + s(julian, k = 3) +
-                                  year + (1 | region))  
+                                  year + (1 | station_id))  
 
 ebs_annual_final <- brm(ebs_annual_final_formula,
                         data = ebs.dat,
@@ -118,8 +110,8 @@ ebs_annual_final <- readRDS("./output/ebs_annual_final.rds")
 check_hmc_diagnostics(ebs_annual_final$fit)
 neff_lowest(ebs_annual_final$fit)
 rhat_highest(ebs_annual_final$fit)
-summary(ebs_annual_final) #dramatically lower condition in 2019
-bayes_R2(ebs_annual_final) #r2 = .52 
+summary(ebs_annual_final) 
+bayes_R2(ebs_annual_final) #r2 = .6 
 
 #Diagnostic Plots
 plot(ebs_annual_final, ask = FALSE)
@@ -134,7 +126,7 @@ pp_check(ebs_annual_final, type = "stat", stat = "mean")
 pp_check(ebs_annual_final, type = "stat", stat = "min")
 pp_check(ebs_annual_final, type = "stat", stat = "max")
 
-#-----------------------------------------------------------------------------------
+#------
 #Extract conditional effect of year 
 
 conditional_effects(ebs_annual_final, effect = "year")
@@ -162,12 +154,15 @@ year_ebs %>%
   geom_rect(aes(xmin=0, xmax=Inf, ymin=22.6-2.9, ymax=22.6), fill="red", alpha = 0.05) 
 ggsave("./figures/model_condition.png", height = 6, width = 7, units = "in", dpi = 300)
 
-#Write output
-missing <- data.frame(year = 2020)
+############################################
 
-year_ebs %>%
+#Save output
+indicator_condition <- year_ebs %>%
   mutate(year = as.numeric(as.character(year))) %>%
-  bind_rows(missing) %>%
-  arrange(year) %>%
-  write.csv(file="./output/opilio_condition.csv")
+  complete(year = min(year):max(year)) %>%
+  arrange(year)
+
+write.csv(indicator_condition, file="./output/indicator_opilio_condition.csv", row.names = FALSE)
+
+
 
