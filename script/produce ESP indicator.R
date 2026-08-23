@@ -158,6 +158,8 @@ ggsave("./figures/model_condition.png", height = 6, width = 7, units = "in", dpi
 
 #Save output locally and in Snow Crab ESP output folder
 indicator_condition <- year_ebs %>%
+  select(year, annual_mean) %>%
+  rename("energetic_condition" = "annual_mean") %>%
   mutate(year = as.numeric(as.character(year))) %>%
   complete(year = min(year):max(year)) %>%
   arrange(year)
